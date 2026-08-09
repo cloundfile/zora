@@ -81,36 +81,36 @@ jobs:
           tar -C pkg-rpm -czf rpmbuild/SOURCES/zora-src.tar.gz .
 
           cat > rpmbuild/SPECS/zora.spec <<EOF
-Name: zora
-Version: ${VERSION}
-Release: 1
-Summary: Assistente Pessoal de Pesquisa
-License: MIT
-Group: Applications/Productivity
-BuildArch: x86_64
-Source0: zora-src.tar.gz
+          Name: zora
+          Version: ${VERSION}
+          Release: 1
+          Summary: Assistente Pessoal de Pesquisa
+          License: MIT
+          Group: Applications/Productivity
+          BuildArch: x86_64
+          Source0: zora-src.tar.gz
 
-%description
-Assistente Pessoal de Pesquisa
+          %description
+          Assistente Pessoal de Pesquisa
 
-%prep
-%setup -c -n zora-src
+          %prep
+          %setup -c -n zora-src
 
-%build
+          %build
 
-%install
-mkdir -p %{buildroot}/usr/bin
-cp %{_builddir}/zora-src/usr/bin/zora %{buildroot}/usr/bin/zora
-cp %{_builddir}/zora-src/usr/bin/zora-after-install.sh %{buildroot}/usr/bin/zora-after-install.sh
-chmod 755 %{buildroot}/usr/bin/zora %{buildroot}/usr/bin/zora-after-install.sh
+          %install
+          mkdir -p %{buildroot}/usr/bin
+          cp %{_builddir}/zora-src/usr/bin/zora %{buildroot}/usr/bin/zora
+          cp %{_builddir}/zora-src/usr/bin/zora-after-install.sh %{buildroot}/usr/bin/zora-after-install.sh
+          chmod 755 %{buildroot}/usr/bin/zora %{buildroot}/usr/bin/zora-after-install.sh
 
-%post
-/usr/bin/zora-after-install.sh
+          %post
+          /usr/bin/zora-after-install.sh
 
-%files
-/usr/bin/zora
-/usr/bin/zora-after-install.sh
-EOF
+          %files
+          /usr/bin/zora
+          /usr/bin/zora-after-install.sh
+          EOF
 
           rpmbuild --define "_topdir $PWD/rpmbuild" -bb rpmbuild/SPECS/zora.spec
           cp rpmbuild/RPMS/x86_64/*.rpm out/
