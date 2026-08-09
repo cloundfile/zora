@@ -145,7 +145,8 @@ jobs:
       - name: Install NSIS
         shell: pwsh
         run: |
-          Invoke-WebRequest -Uri "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.09/nsis-3.09.zip" -OutFile nsis.zip
+          curl.exe -L --retry 5 --retry-delay 3 -o nsis.zip "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.09/nsis-3.09.zip"
+          if (-not (Test-Path "nsis.zip")) { throw "Falha ao baixar NSIS" }
           Expand-Archive nsis.zip -DestinationPath nsis
 
       - name: Build Windows installer (NSIS)
