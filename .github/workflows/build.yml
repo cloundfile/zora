@@ -29,7 +29,7 @@ jobs:
           pip install -e .
 
       - name: Build binary with PyInstaller
-        run: pyinstaller --onefile --name zora rag.py
+        run: pyinstaller --onefile --name zora --collect-all chromadb --collect-all posthog rag.py
 
       - name: Install rpm build tools
         run: |
