@@ -121,53 +121,9 @@ jobs:
           name: linux-installers
           path: out/
 
-  build-windows:
-    name: Build .exe (Windows)
-    runs-on: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install pyinstaller
-          pip install -e .
-
-      - name: Build .exe with PyInstaller
-        run: pyinstaller --onefile --name zora rag.py
-
-      - name: Install NSIS
-        shell: pwsh
-        run: |
-          curl.exe -L --retry 5 --retry-delay 3 -o nsis.zip "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.09/nsis-3.09.zip"
-          if (-not (Test-Path "nsis.zip")) { throw "Falha ao baixar NSIS" }
-          Expand-Archive nsis.zip -DestinationPath nsis
-
-      - name: Build Windows installer (NSIS)
-        shell: pwsh
-        run: |
-          $makensis = Get-ChildItem -Path nsis -Recurse -Filter makensis.exe | Select-Object -First 1 -ExpandProperty FullName
-          Write-Host "makensis: $makensis"
-          & $makensis scripts\zora.nsi
-          if (-not (Test-Path "zora-installer.exe")) { throw "Installer not produced" }
-
-      - name: Upload Windows installer as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-installer
-          path: |
-            dist/zora.exe
-            zora-installer.exe
-
   release:
     name: Publish Release
-    needs: [build-linux, build-windows]
+    needs: [build-linux]
     runs-on: ubuntu-latest
     steps:
       - name: Define tag and version
@@ -188,12 +144,6 @@ jobs:
           name: linux-installers
           path: release/linux
 
-      - name: Download Windows installer
-        uses: actions/download-artifact@v4
-        with:
-          name: windows-installer
-          path: release/windows
-
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -204,9 +154,6 @@ jobs:
 
             - **Linux (.deb):** `release/linux/*.deb`
             - **Linux (.rpm):** `release/linux/*.rpm`
-            - **Windows (.exe):** `release/windows/zora.exe` e `release/windows/zora-installer.exe`
           files: |
             release/linux/*.deb
             release/linux/*.rpm
-            release/windows/zora.exe
-            release/windows/zora-installer.exe

@@ -7,6 +7,10 @@ import time
 MODELO_PADRAO = "qwen2.5"
 
 
+def e_modelo_cloud(nome):
+    return nome.lower().endswith(":cloud")
+
+
 def ollama_instalado():
     return shutil.which("ollama") is not None
 
@@ -85,7 +89,10 @@ def garantir_ollama():
         return MODELO_PADRAO
 
     iniciar_ollama()
-    modelos = listar_modelos()
+    modelos = [m for m in listar_modelos() if not e_modelo_cloud(m)]
+    if MODELO_PADRAO in modelos:
+        print(f"Ollama já instalado. Usando LLM padrão: {MODELO_PADRAO}")
+        return MODELO_PADRAO
     if modelos:
         print(f"Ollama já instalado. Usando LLM disponível como padrão: {modelos[0]}")
         return modelos[0]
