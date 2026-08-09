@@ -1,0 +1,158 @@
+name: Build Installers
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    name: Build .deb and .rpm (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pyinstaller
+          pip install -e .
+
+      - name: Build binary with PyInstaller
+        run: pyinstaller --onefile --name zora rag.py
+
+      - name: Install fpm and rpm tools
+        run: |
+          gem install fpm --no-document
+          sudo apt-get update
+          sudo apt-get install -y rpm
+          chmod +x scripts/after-install.sh
+
+      - name: Build .deb and .rpm packages
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+          else
+            VERSION="1.0.0.${GITHUB_SHA:0:7}"
+          fi
+          VERSION="${VERSION#v}"
+          mkdir -p out
+
+          fpm -s dir -t deb \
+            -n zora \
+            -v "${VERSION}" \
+            --description "Assistente Pessoal de Pesquisa" \
+            --maintainer "Equipe de Desenvolvimento" \
+            --license MIT \
+            --architecture amd64 \
+            --after-install scripts/after-install.sh \
+            -p out \
+            ./dist/zora=/usr/bin/zora
+
+          fpm -s dir -t rpm \
+            -n zora \
+            -v "${VERSION}" \
+            --description "Assistente Pessoal de Pesquisa" \
+            --maintainer "Equipe de Desenvolvimento" \
+            --license MIT \
+            --architecture x86_64 \
+            --after-install scripts/after-install.sh \
+            -p out \
+            ./dist/zora=/usr/bin/zora
+
+      - name: Upload Linux packages as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-installers
+          path: out/
+
+  build-windows:
+    name: Build .exe (Windows)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -e .
+
+      - name: Build .exe with PyInstaller
+        run: pyinstaller --onefile --name zora rag.py
+
+      - name: Build Windows installer (NSIS)
+        run: |
+          choco install nsis -y
+          "C:\Program Files (x86)\NSIS\makensis.exe" scripts\zora.nsi
+
+      - name: Upload Windows installer as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: |
+            dist/zora.exe
+            zora-installer.exe
+
+  release:
+    name: Publish Release
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Define tag and version
+        id: meta
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            TAG="v1.0.0.${GITHUB_SHA:0:7}"
+          fi
+          NAME="Release $TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "prerelease=false" >> "$GITHUB_OUTPUT"
+
+      - name: Download Linux packages
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-installers
+          path: release/linux
+
+      - name: Download Windows installer
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: release/windows
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.name }}
+          body: |
+            Instaladores gerados automaticamente a partir do commit ${{ github.sha }}.
+
+            - **Linux (.deb):** `release/linux/*.deb`
+            - **Linux (.rpm):** `release/linux/*.rpm`
+            - **Windows (.exe):** `release/windows/zora.exe` e `release/windows/zora-installer.exe`
+          files: |
+            release/linux/*.deb
+            release/linux/*.rpm
+            release/windows/zora.exe
+            release/windows/zora-installer.exe
