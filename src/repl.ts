@@ -7,7 +7,7 @@ export async function iniciarRepl(store: Store, modelo: string, historico: Mensa
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   try {
     while (true) {
-      const pergunta = await rl.question("\nQual sua duvida hoje? (ou 'sair' para encerrar): ");
+      const pergunta = await rl.question("\nQual sua duvida hoje? ");
       if (pergunta.trim().toLowerCase() === "sair") {
         console.log("Saindo...");
         break;

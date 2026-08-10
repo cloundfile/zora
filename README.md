@@ -1,44 +1,53 @@
 # Zora
 
-Assistente Pessoal de Pesquisa (versão TypeScript/Node.js).
-
-CLI de RAG local: treine documentos (.txt/.pdf) e faça perguntas respondidas por um LLM via Ollama, com contexto recuperado por similaridade vetorial.
-
-## Requisitos
-
-- Node.js >= 22.13 (usa `node:sqlite`)
-- Ollama instalado e rodando (o CLI tenta instalar/iniciar automaticamente se ausente)
+Assistente pessoal de pesquisa com RAG local. Treine documentos (.txt/.pdf) e faça perguntas respondidas por um LLM via Ollama.
 
 ## Instalação
 
+### Global (recomendado)
+
 ```bash
-npm install
-npm run build       # gera dist/zora.cjs
-node dist/zora.cjs  # modo REPL
+npm install -g @inneobr/zora
+zora
 ```
 
-## Uso
+### Local (sem instalar no sistema)
 
-| Comando | Descrição |
-| --- | --- |
-| `zora` | Abre o REPL de perguntas |
-| `zora treinar [-p caminho]` | Treina um documento (seletor gráfico/terminal ou `-p`) |
-| `zora perguntar -p "pergunta"` | Faz uma pergunta em modo direto |
-| `zora status` | Mostra chunks e documentos armazenados |
-| `zora limpar` | Apaga o banco de dados |
-| `zora backup` | Cria backup zipado em `~/zora/backups` |
-| `zora restaurar [-p caminho.zip]` | Restaura backup |
+```bash
+npx @inneobr/zora
+```
 
-## Dados
+### A partir do código
 
-- Banco de dados: `~/zora/database/zora.db` (SQLite com chunks + embeddings via Ollama `nomic-embed-text`).
-- Backups: `~/zora/backups/zora-backup-*.zip`.
+```bash
+git clone https://github.com/cloundfile/zora.git
+cd zora
+npm install
+npm run build
+node dist/zora.cjs
+```
+
+Requer Node.js >= 22 e Ollama (o CLI instala/inicia automaticamente).
+
+## Comandos
+
+```bash
+zora                          # abre o chat
+zora treinar -p arquivo.pdf   # treina um documento
+zora perguntar -p "pergunta"  # pergunta direta
+zora status                   # o que já foi treinado
+zora limpar                   # apaga o banco de dados
+zora backup                   # cria backup
+zora restaurar                # restaura backup
+```
 
 ## Desenvolvimento
 
-- `npm run dev` — executa via tsx (sem build).
-- `npm run typecheck` — checa os tipos com `tsc --noEmit`.
-- `npm run build` — empacota tudo em um único arquivo `dist/zora.cjs` com esbuild.
+```bash
+npm run dev          # roda sem build
+npm run typecheck    # checa tipos
+npm run build        # gera dist/zora.cjs
+```
 
 ## Licença
 
