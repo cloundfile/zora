@@ -2,7 +2,7 @@ import * as readline from 'readline/promises';
 import { stdin as input, stdout as output } from 'process';
 import type { LLMProvider } from '../llm/types';
 import { answerQuestion } from '../services/chatService';
-import { clearProcessing, printAgentMessage, printGreeting, printProcessing, printUserMessage } from './output';
+import { clearProcessing, GREETING, printAgentMessage, printProcessing, printUserMessage } from './output';
 
 export const EXIT_COMMANDS = new Set(['sair', 'exit', 'quit', '/sair', '/exit']);
 
@@ -13,9 +13,6 @@ export async function runChatLoop(llm: LLMProvider, sessionId: string): Promise<
     rl.close();
     process.exit(0);
   });
-
-  // A partida da conversa: o agente sempre começa cumprimentando.
-  printGreeting();
 
   while (true) {
     let inputText: string;
@@ -42,8 +39,7 @@ export async function runChatLoop(llm: LLMProvider, sessionId: string): Promise<
 }
 
 function promptLabel(): string {
-  const dir = process.cwd().split('/').pop() || '';
-  return `${dir} ➜ `;
+  return `${GREETING} `;
 }
 
 function showInlineHelp(): void {

@@ -3,7 +3,8 @@ import * as path from 'path';
 import { insertDocument, insertChunk, getDocumentByHash } from '../models/documentModel';
 import { sha256 } from '../models/schema';
 import type { LLMProvider } from '../llm/types';
-import { findCnpjs } from './cnpjService';
+import { buscarCnpj, extrairCnpjs } from './cnpjService';
+import { getCompany, upsertCompany } from '../models/companyModel';
 import { ZoraError } from '../errors/zoraErrors';
 
 const CHUNK_SIZE = 500;
@@ -13,7 +14,7 @@ export interface IngestResult {
   filename: string;
   fileHash: string;
   chunks: number;
-  cnpjs: string[];
+  fullText: string;
   duplicate?: boolean;
 }
 
@@ -100,6 +101,29 @@ export function splitIntoChunks(text: string, size = CHUNK_SIZE): string[] {
   return chunks.length > 0 ? chunks : [''];
 }
 
+async function enriquecerCnpjsDoDocumento(texto: string): Promise<void> {
+  const cnpjs = extrairCnpjs(texto);
+  if (cnpjs.length === 0) return;
+
+  for (const cnpj of cnpjs) {
+    const local = getCompany(cnpj);
+    if (local?.raw_data) continue;
+
+    try {
+      const dados = await buscarCnpj(cnpj);
+      if (dados?.nome) {
+        upsertCompany(cnpj, {
+          raw_data: dados,
+          company_name: dados.nome,
+          trade_name: dados.fantasia ?? null,
+        });
+      }
+    } catch {
+      // API indisponível: o documento segue o fluxo normal de chunks
+    }
+  }
+}
+
 export async function ingestFile(
   llm: LLMProvider,
   filepath: string,
@@ -111,7 +135,14 @@ export async function ingestFile(
   const fileHash = sha256(buffer);
   const existing = getDocumentByHash(fileHash);
   if (existing) {
-    return { documentId: existing.id, filename, fileHash, chunks: 0, cnpjs: [], duplicate: true };
+    return {
+      documentId: existing.id,
+      filename,
+      fileHash,
+      chunks: 0,
+      fullText: '',
+      duplicate: true,
+    };
   }
 
   const fullText = await extractText(buffer, mimeType);
@@ -128,6 +159,8 @@ export async function ingestFile(
     original_blob: buffer,
   }).id;
 
+  await enriquecerCnpjsDoDocumento(fullText);
+
   const chunks = splitIntoChunks(fullText);
   for (let i = 0; i < chunks.length; i++) {
     const embedding = await llm.embed(chunks[i]);
@@ -135,7 +168,5 @@ export async function ingestFile(
     insertChunk({ document_id: documentId, chunk_index: i, chunk_text: chunks[i], embedding: bufferEmbedding });
   }
 
-  const cnpjs = findCnpjs(fullText);
-
-  return { documentId, filename, fileHash, chunks: chunks.length, cnpjs };
+  return { documentId, filename, fileHash, chunks: chunks.length, fullText };
 }

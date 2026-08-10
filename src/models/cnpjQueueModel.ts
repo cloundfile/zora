@@ -41,7 +41,7 @@ export function markCnpjFailed(cnpj: string): void {
 function extractName(rawData: unknown): string | null {
   if (rawData && typeof rawData === 'object') {
     const rec = rawData as Record<string, unknown>;
-    return (rec.razao_social as string) ?? null;
+    return (rec.nome as string) ?? (rec.razao_social as string) ?? null;
   }
   return null;
 }

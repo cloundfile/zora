@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { versionCommand } from '../../src/controllers/versionController';
 import { splitIntoChunks, mimeFromExtension } from '../../src/services/ingestion';
-import { findCnpjs } from '../../src/services/cnpjService';
+import { extrairCnpjs } from '../../src/services/cnpjService';
 import { cosineSimilarity } from '../../src/services/vectorStore';
 import { GREETING } from '../../src/views/output';
 import { EXIT_COMMANDS, runChatLoop } from '../../src/views/chatView';
@@ -54,7 +54,7 @@ describe('ingestion helpers', () => {
 
 describe('cnpj service', () => {
   it('extrai e normaliza CNPJs do texto', () => {
-    const cnpjs = findCnpjs(
+    const cnpjs = extrairCnpjs(
       'CNPJ 12.345.678/0001-95 e outro 99.888.777/0001-01',
     );
     expect(cnpjs).toContain('12345678000195');

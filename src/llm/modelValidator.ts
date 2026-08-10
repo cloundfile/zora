@@ -45,8 +45,7 @@ async function validateOllamaModels(llm: OllamaProvider): Promise<void> {
     );
   }
 
-  console.log(chalk.dim(`  • Chat: ${llm.model} | Embeddings: ${llm.embedModel}`));
-}
+  }
 
 function normalizeModelName(name: string): string {
   return name.replace(/:.*$/, '').trim().toLowerCase();

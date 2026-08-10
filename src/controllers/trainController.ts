@@ -5,7 +5,7 @@ import { migrateSchema, loadVectorExtension } from '../models/schema';
 import { buildAndValidateLlm } from './llmHelper';
 import { pickFiles } from '../services/filePicker';
 import { ingestFile } from '../services/ingestion';
-import { linkFoundCnpjs } from '../services/cnpjService';
+import { extrairCnpjs } from '../services/cnpjService';
 import { getDocumentCount, getChunkCount } from '../models/documentModel';
 import type { LLMProvider } from '../llm/types';
 import { ZoraError } from '../errors/zoraErrors';
@@ -56,11 +56,11 @@ async function trainFiles(llm: LLMProvider, files: string[]): Promise<void> {
         console.log(chalk.yellow(`  ⚠️ Documento "${result.filename}" já foi treinado anteriormente. Operação ignorada.`));
         continue;
       }
-      linkFoundCnpjs(result.documentId, result.cnpjs);
+      const cnpjs = extrairCnpjs(result.fullText);
       trained++;
       console.log(chalk.green(`  ✓ Documento "${result.filename}" treinado! Chunks: ${result.chunks}`));
-      if (result.cnpjs.length) {
-        console.log(chalk.dim(`    CNPJs: ${result.cnpjs.join(', ')}`));
+      if (cnpjs.length) {
+        console.log(chalk.dim(`    CNPJs: ${cnpjs.join(', ')}`));
       }
     } catch (error) {
       if (error instanceof ZoraError && error.fatal) {

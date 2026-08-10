@@ -1,5 +1,5 @@
-import OpenAI from 'openai';
 import type { LLMProvider, ChatMessage } from '../types';
+import OpenAI from 'openai';
 
 export class OpenAiProvider implements LLMProvider {
   readonly name = 'openai' as const;

@@ -4,9 +4,11 @@ import { setupTestDb } from '../helpers/testDb';
 import { sha256 } from '../../src/models/schema';
 import { insertDocument, getDocumentByHash, getDocumentCount } from '../../src/models/documentModel';
 import { linkDocumentToCnpj, upsertCompany } from '../../src/models/companyModel';
-import { findCnpjs, normalizeCnpj, isAlphanumericCnpj, alphanumericCnpjWarning } from '../../src/services/cnpjService';
+import { extrairCnpjs, formatarCnpj, limparCnpj } from '../../src/services/cnpjService';
 import { createLLM } from '../../src/llm/llmFactory';
 import { OllamaProvider } from '../../src/llm/providers/ollamaProvider';
+import { searchChunks } from '../../src/services/vectorStore';
+import type { LLMProvider } from '../../src/llm/types';
 
 describe('update.md — deduplicação e integridade', () => {
   let db: Database.Database;
@@ -82,19 +84,45 @@ describe('update.md — deduplicação e integridade', () => {
     });
   });
 
-  describe('CNPJ alfanumérico (2026)', () => {
-    it('reconhece e normaliza CNPJs alfanuméricos', () => {
-      const cnpjs = findCnpjs('Empresa AB.CDE.FGH/0001-95 registrada.');
-      expect(cnpjs).toContain('ABCDEFGH000195');
-      expect(isAlphanumericCnpj('ABCDEFGH000195')).toBe(true);
-      expect(isAlphanumericCnpj('12345678000195')).toBe(false);
-      expect(normalizeCnpj('ab.cde.fgh/0001-95')).toBe('ABCDEFGH000195');
+  describe('CNPJ tradicional (numérico)', () => {
+    it('reconhece e normaliza CNPJs tradicionais', () => {
+      const cnpjs = extrairCnpjs('Empresa 03.584.427/0001-72 registrada com CNPJ 03584427000172.');
+      expect(cnpjs).toContain('03584427000172');
+      expect(limparCnpj('03.584.427/0001-72')).toBe('03584427000172');
+      expect(formatarCnpj('03584427000172')).toBe('03.584.427/0001-72');
     });
 
-    it('gera aviso amigável para CNPJ alfanumérico', () => {
-      const warning = alphanumericCnpjWarning('ABCDEFGH000195');
-      expect(warning).toContain('formato Alfanumérico');
-      expect(warning).toContain('AB.CDE.FGH/0001-95');
+    it('não reconhece CNPJs alfanuméricos', () => {
+      const cnpjs = extrairCnpjs('Empresa AB.CDE.FGH/0001-95 registrada.');
+      expect(cnpjs).toEqual([]);
+      expect(limparCnpj('ab.cde.fgh/0001-95')).toBe('000195');
+    });
+  });
+
+  describe('busca vetorial com fallback lexical', () => {
+    it('encontra chunk por semelhança lexical quando o cosseno fica baixo', async () => {
+      insertDocument({
+        filename: 'entidade.txt',
+        file_hash: sha256(Buffer.from('entidade')),
+        mime_type: 'text/plain',
+        full_text:
+          'Associação Tradicionalista União Gaúcha realiza eventos culturais no município.',
+        original_blob: Buffer.from('entidade'),
+      });
+
+      const chunkEmbedding = Buffer.from(new Float32Array([0, 1]).buffer);
+      db.prepare(
+        `INSERT INTO document_chunks (id, document_id, chunk_index, chunk_text, embedding)
+         VALUES (?, (SELECT id FROM documents LIMIT 1), 0, ?, ?)`,
+      ).run('c1', 'Associação Tradicionalista União Gaúcha realiza eventos culturais.', chunkEmbedding);
+
+      const llm = {
+        embed: async () => [1, 0],
+      } as unknown as LLMProvider;
+
+      const matches = await searchChunks(llm, 'Associação Tradicionalista União Gaúcha');
+      expect(matches.length).toBeGreaterThan(0);
+      expect(matches[0].chunk_text).toContain('Associação Tradicionalista');
     });
   });
 });

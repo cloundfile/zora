@@ -1,6 +1,6 @@
-import { Ollama } from 'ollama';
 import type { LLMProvider, ChatMessage } from '../types';
 import { ZoraError } from '../../errors/zoraErrors';
+import { Ollama } from 'ollama';
 
 export class OllamaProvider implements LLMProvider {
   readonly name = 'ollama' as const;

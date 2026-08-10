@@ -1,5 +1,5 @@
-import Anthropic from '@anthropic-ai/sdk';
 import type { LLMProvider, ChatMessage } from '../types';
+import Anthropic from '@anthropic-ai/sdk';
 
 export class ClaudeProvider implements LLMProvider {
   readonly name = 'claude' as const;

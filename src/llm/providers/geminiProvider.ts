@@ -1,5 +1,5 @@
-import { GoogleGenAI } from '@google/genai';
 import type { LLMProvider, ChatMessage } from '../types';
+import { GoogleGenAI } from '@google/genai';
 
 export class GeminiProvider implements LLMProvider {
   readonly name = 'gemini' as const;

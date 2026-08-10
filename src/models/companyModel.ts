@@ -46,6 +46,15 @@ export function linkDocumentToCnpj(
     .run(documentId, cnpj);
 }
 
+export function unlinkDocumentCnpj(
+  documentId: string,
+  cnpj: string,
+): void {
+  getDb()
+    .prepare('DELETE FROM document_cnpjs WHERE document_id = ? AND cnpj = ?')
+    .run(documentId, cnpj);
+}
+
 export function getCompaniesByDocument(documentId: string): CompanyRow[] {
   return getDb()
     .prepare(
