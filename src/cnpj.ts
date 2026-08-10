@@ -109,22 +109,31 @@ export function extrairCnpjs(texto: string): string[] {
   return [...new Set((texto.match(REGEX_CNPJ) ?? []).map(limparCnpj).filter(validarCnpj))];
 }
 
-export async function treinarCnpjAutomatico(store: Store, cnpj: string): Promise<boolean> {
+export async function obterDadosCnpj(store: Store, cnpj: string): Promise<string | null> {
   const digitos = limparCnpj(cnpj);
+  const origem = `CNPJ ${formatarCnpj(digitos)}`;
+  const existentes = store.buscarPorArquivo(origem);
+  if (existentes.length > 0) {
+    return existentes.map((c) => c.texto).join("\n");
+  }
   let dados;
   try {
     dados = await buscarCnpj(digitos);
   } catch {
-    return false;
+    return null;
   }
-  if (dados.status && dados.status !== "OK") return false;
+  if (dados.status && dados.status !== "OK") return null;
   const texto = cnpjParaTexto(dados);
   const hash = hashDocumento(texto);
-  if (store.jaExiste(hash)) return true;
-  const origem = `CNPJ ${formatarCnpj(digitos)}`;
-  const chunks = getChunks(texto);
-  for (const c of chunks) {
-    await store.adicionar(c, hash, origem);
+  if (!store.jaExiste(hash)) {
+    const chunks = getChunks(texto);
+    for (const c of chunks) {
+      await store.adicionar(c, hash, origem);
+    }
   }
-  return true;
+  return texto;
+}
+
+export async function treinarCnpjAutomatico(store: Store, cnpj: string): Promise<boolean> {
+  return (await obterDadosCnpj(store, cnpj)) !== null;
 }

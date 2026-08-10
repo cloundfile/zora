@@ -1,6 +1,6 @@
 import ollama from "ollama";
 import { Store } from "./store.js";
-import { formatarCnpj, extrairCnpjs, treinarCnpjAutomatico } from "./cnpj.js";
+import { formatarCnpj, extrairCnpjs, obterDadosCnpj } from "./cnpj.js";
 
 export interface Mensagem {
   role: "system" | "user" | "assistant";
@@ -22,13 +22,19 @@ export async function chat(
   pergunta: string,
   historico: Mensagem[]
 ): Promise<string> {
+  const infosCnpj: string[] = [];
   for (const cnpj of extrairCnpjs(pergunta)) {
-    if (await treinarCnpjAutomatico(store, cnpj)) {
-      console.log(`\nCNPJ ${formatarCnpj(cnpj)} consultado e treinado automaticamente.`);
+    const info = await obterDadosCnpj(store, cnpj);
+    if (info) {
+      infosCnpj.push(info);
+      console.log(`\nCNPJ ${formatarCnpj(cnpj)} consultado (já existia ou treinado automaticamente).`);
     }
   }
   const contexto = await store.buscar(pergunta);
-  const contextoTexto = contexto.map((c) => c.texto).join("\n\n");
+  const contextoTexto = [
+    ...infosCnpj,
+    ...contexto.map((c) => c.texto),
+  ].join("\n\n");
   const messages: Mensagem[] = [];
   if (system) messages.push({ role: "system", content: system });
   const limit = Math.max(0, 10 - (system ? 1 : 0) - historico.length);

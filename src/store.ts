@@ -138,6 +138,19 @@ export class Store {
     return !!r;
   }
 
+  buscarPorArquivo(arquivo: string): Chunk[] {
+    const linhas = this.db
+      .prepare("SELECT id, texto, hash, arquivo, embedding FROM chunks WHERE arquivo = ?")
+      .all(arquivo) as { id: string; texto: string; hash: string; arquivo: string; embedding: Uint8Array }[];
+    return linhas.map((l) => ({
+      id: l.id,
+      texto: l.texto,
+      hash: l.hash,
+      arquivo: l.arquivo,
+      embedding: Array.from(paraVetor(l.embedding)),
+    }));
+  }
+
   fechar(): void {
     this.db.close();
   }
