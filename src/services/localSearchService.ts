@@ -1,6 +1,12 @@
 import { getDb } from '../models/db';
 import { cnpjParaTexto, type DadosCnpj } from './cnpjService';
 import type { CompanyRow } from '../models/companyModel';
+import {
+  normalizar,
+  tokens,
+  tokensSignificativos,
+  WORD_RE,
+} from '../utils/textSearch';
 
 export interface DocumentLocalMatch {
   document_id: string;
@@ -21,19 +27,10 @@ export interface LocalSearchResult {
   companies: CompanyLocalMatch[];
 }
 
-const WORD_RE = /[a-z0-9]+/g;
 const SNIPPET_BEFORE = 200;
 const SNIPPET_AFTER = 300;
 const MAX_SNIPPET = 600;
-const MIN_COVERAGE = 0.25;
-
-function normalizeForSearch(s: string): string {
-  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-}
-
-function tokens(text: string): string[] {
-  return [...new Set(normalizeForSearch(text).match(WORD_RE) ?? [])];
-}
+const MIN_COVERAGE = 0.5;
 
 const ACCENT_VARIANTS: Record<string, string> = {
   a: 'aáàâãAÁÀÂÃ',
@@ -55,6 +52,20 @@ function accentPattern(word: string): string {
     .join('');
 }
 
+function contarTermosNoTexto(terms: string[], text: string): number {
+  let hits = 0;
+  for (const term of terms) {
+    const re = new RegExp(`\\b${accentPattern(term)}\\b`, 'i');
+    if (re.test(text)) hits++;
+  }
+  return hits;
+}
+
+function focusTerms(consulta: string): string[] {
+  const significativos = tokensSignificativos(consulta);
+  return significativos.length > 0 ? significativos : tokens(consulta);
+}
+
 function coverage(terms: string[], text: string): number {
   if (terms.length === 0) return 0;
   const set = new Set(tokens(text));
@@ -67,31 +78,31 @@ function makeSnippet(fullText: string, terms: string[]): string {
   const clean = fullText.replace(/\s+/g, ' ').trim();
   if (!clean) return '';
 
-  let anchor = -1;
-  let anchorLen = 0;
+  let best = { score: -1, start: 0, end: 0 };
   for (const term of terms) {
-    const re = new RegExp(accentPattern(term), 'i');
-    const m = clean.match(re);
-    if (m && m.index !== undefined) {
-      const idx = m.index;
-      if (anchor === -1 || idx < anchor) {
-        anchor = idx;
-        anchorLen = m[0].length;
+    const re = new RegExp(accentPattern(term), 'ig');
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(clean)) !== null) {
+      const anchor = m.index;
+      const start = Math.max(0, anchor - SNIPPET_BEFORE);
+      const end = Math.min(clean.length, anchor + m[0].length + SNIPPET_AFTER);
+      const window = clean.slice(start, end);
+      const score = contarTermosNoTexto(terms, window);
+      if (score > best.score) {
+        best = { score, start, end };
       }
+      if (re.lastIndex === anchor) re.lastIndex++;
     }
   }
 
-  if (anchor === -1) return clean.slice(0, MAX_SNIPPET);
+  if (best.score === -1) return clean.slice(0, MAX_SNIPPET);
 
-  const start = Math.max(0, anchor - SNIPPET_BEFORE);
-  const end = Math.min(clean.length, anchor + anchorLen + SNIPPET_AFTER);
-  let snippet = clean.slice(start, end).trim();
-
+  let snippet = clean.slice(best.start, best.end).trim();
   if (snippet.length > MAX_SNIPPET) {
     snippet = snippet.slice(0, MAX_SNIPPET).trim();
   }
-  if (start > 0) snippet = `... ${snippet}`;
-  if (end < clean.length) snippet = `${snippet} ...`;
+  if (best.start > 0) snippet = `... ${snippet}`;
+  if (best.end < clean.length) snippet = `${snippet} ...`;
 
   return snippet;
 }
@@ -106,7 +117,7 @@ export function buscarDocumentos(
   consulta: string,
   limit = 5,
 ): DocumentLocalMatch[] {
-  const terms = tokens(consulta);
+  const terms = focusTerms(consulta);
   if (terms.length === 0) return [];
 
   const rows = getDb()
@@ -134,7 +145,7 @@ export function buscarEmpresas(
   consulta: string,
   limit = 5,
 ): CompanyLocalMatch[] {
-  const terms = tokens(consulta);
+  const terms = focusTerms(consulta);
   if (terms.length === 0) return [];
 
   const rows = getDb()

@@ -1,6 +1,7 @@
 import type { LLMProvider } from '../llm/types';
 import { getDb } from '../models/db';
 import type { DocumentChunkRow } from '../models/documentModel';
+import { normalizar, tokensSignificativos, WORD_RE } from '../utils/textSearch';
 
 export interface ChunkMatch {
   chunk_id: string;
@@ -14,15 +15,10 @@ interface ScoredChunk extends ChunkMatch {
 }
 
 const COSINE_THRESHOLD = 0.15;
-const WORD_RE = /[a-z0-9]+/g;
-
-function normalizeForSearch(s: string): string {
-  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-}
 
 function lexicalScore(queryWords: Set<string>, text: string): number {
   if (queryWords.size === 0) return 0;
-  const textWords = new Set(normalizeForSearch(text).match(WORD_RE) ?? []);
+  const textWords = new Set(normalizar(text).match(WORD_RE) ?? []);
   let hits = 0;
   for (const word of queryWords) {
     if (textWords.has(word)) hits++;
@@ -50,7 +46,7 @@ export async function searchChunks(
   limit = 10,
 ): Promise<ChunkMatch[]> {
   const queryEmbedding = await llm.embed(query);
-  const queryWords = new Set(normalizeForSearch(query).match(WORD_RE) ?? []);
+  const queryWords = new Set(tokensSignificativos(query));
   const rows = getDb()
     .prepare('SELECT * FROM document_chunks')
     .all() as unknown as DocumentChunkRow[];
