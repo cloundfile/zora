@@ -1,10 +1,4 @@
-database/
-backups/
-__pycache__/
-*.pyc
-venv/
-.venv/
-*.egg-info/
-build/
+node_modules/
 dist/
-*.spec
+*.log
+.DS_Store
