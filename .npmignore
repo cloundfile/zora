@@ -1,0 +1,6 @@
+.env
+tests/
+src/
+backups/
+*.db
+.git
