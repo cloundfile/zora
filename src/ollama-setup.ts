@@ -127,7 +127,7 @@ export async function garantirOllama(): Promise<string> {
 
   const modeloDefault = modelos[0];
   if (modeloDefault && (await modeloFunciona(modeloDefault))) {
-    console.log(`Ollama já instalado. Usando LLM padrão: ${modeloDefault}`);
+    console.log(`Ollama: ${modeloDefault} : OK`);
     await baixarEmbedding();
     return modeloDefault;
   }
