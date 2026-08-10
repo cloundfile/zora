@@ -8,6 +8,7 @@ export interface ZoraConfig {
   provider: ProviderName;
   apiKey?: string;
   model?: string;
+  embedModel?: string;
   developer: string;
   contact: string;
   license: string;
@@ -18,6 +19,7 @@ const CONFIG_PATH = path.join(os.homedir(), '.zorarc');
 const DEFAULT_CONFIG: ZoraConfig = {
   provider: 'ollama',
   model: 'gemma',
+  embedModel: 'nomic-embed-text',
   developer: '@inneobr',
   contact: 'inneobr@gmail.com',
   license: 'MIT',

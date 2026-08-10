@@ -22,7 +22,8 @@ export async function configCommand(): Promise<void> {
     const config = loadConfig();
     console.log(chalk.cyan('\nConfigurações atuais:'));
     console.log(`  • Provedor: ${config.provider}`);
-    console.log(`  • Modelo: ${config.model ?? defaultModel(config.provider)}`);
+    console.log(`  • Modelo (chat): ${config.model ?? defaultModel(config.provider)}`);
+    console.log(`  • Modelo (embeddings): ${config.embedModel ?? 'nomic-embed-text'}`);
     console.log(`  • API Key: ${config.apiKey ? '••••••••' + config.apiKey.slice(-4) : 'não definida'}`);
 
     const { action } = await inquirer.prompt<{ action: string }>([
@@ -33,7 +34,8 @@ export async function configCommand(): Promise<void> {
         choices: [
           { name: 'Provedor (LLM Local/Cloud)', value: 'provider' },
           { name: 'Chave de API', value: 'apikey' },
-          { name: 'Modelo ativo', value: 'model' },
+          { name: 'Modelo (chat)', value: 'model' },
+          { name: 'Modelo (embeddings)', value: 'embedModel' },
           { name: 'Salvar e sair', value: 'done' },
         ],
         loop: false,
@@ -49,6 +51,9 @@ export async function configCommand(): Promise<void> {
         break;
       case 'model':
         await changeModel();
+        break;
+      case 'embedModel':
+        await changeEmbedModel();
         break;
       case 'done':
       default:
@@ -110,6 +115,20 @@ async function changeApiKey(): Promise<void> {
   ]);
   updateConfig({ apiKey: apiKey.trim() || undefined });
   console.log(chalk.green('Chave de API atualizada.'));
+}
+
+async function changeEmbedModel(): Promise<void> {
+  const config = loadConfig();
+  const { embedModel } = await inquirer.prompt<{ embedModel: string }>([
+    {
+      type: 'input',
+      name: 'embedModel',
+      message: `Modelo de embeddings (atual: ${config.embedModel ?? 'nomic-embed-text'}):`,
+      default: config.embedModel ?? 'nomic-embed-text',
+    },
+  ]);
+  updateConfig({ embedModel: embedModel.trim() || undefined });
+  console.log(chalk.green('Modelo de embeddings atualizado.'));
 }
 
 async function changeModel(): Promise<void> {

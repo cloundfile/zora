@@ -1,5 +1,6 @@
 import { Ollama } from 'ollama';
 import type { LLMProvider, ChatMessage } from '../types';
+import { ZoraError } from '../../errors/zoraErrors';
 
 export class OllamaProvider implements LLMProvider {
   readonly name = 'ollama' as const;
@@ -8,6 +9,7 @@ export class OllamaProvider implements LLMProvider {
   constructor(
     public readonly model: string,
     private readonly host = 'http://localhost:11434',
+    public readonly embedModel = 'nomic-embed-text',
   ) {
     this.client = new Ollama({ host });
   }
@@ -35,10 +37,21 @@ export class OllamaProvider implements LLMProvider {
   }
 
   async embed(text: string): Promise<number[]> {
-    const res = await this.client.embed({ model: this.model, input: text });
-    const embedding = res.embeddings?.[0];
-    if (!embedding) throw new Error('Embedding vazio retornado pelo Ollama.');
-    return embedding;
+    try {
+      const res = await this.client.embed({ model: this.embedModel, input: text });
+      const embedding = res.embeddings?.[0];
+      if (!embedding) throw new Error('Embedding vazio retornado pelo Ollama.');
+      return embedding;
+    } catch (error) {
+      const message = (error as Error).message;
+      if (/does not support embeddings|--embeddings/i.test(message)) {
+        throw new ZoraError(
+          'ollama_embeddings_off',
+          'O servidor Ollama não tem suporte a embeddings. Reinicie-o executando: `ollama serve --embeddings` (ou instale/carregue o modelo de embedding, ex.: `ollama pull nomic-embed-text`).',
+        );
+      }
+      throw error;
+    }
   }
 
   async listModels(): Promise<string[]> {

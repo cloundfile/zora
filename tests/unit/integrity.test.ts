@@ -5,6 +5,8 @@ import { sha256 } from '../../src/models/schema';
 import { insertDocument, getDocumentByHash, getDocumentCount } from '../../src/models/documentModel';
 import { linkDocumentToCnpj, upsertCompany } from '../../src/models/companyModel';
 import { findCnpjs, normalizeCnpj, isAlphanumericCnpj, alphanumericCnpjWarning } from '../../src/services/cnpjService';
+import { createLLM } from '../../src/llm/llmFactory';
+import { OllamaProvider } from '../../src/llm/providers/ollamaProvider';
 
 describe('update.md — deduplicação e integridade', () => {
   let db: Database.Database;
@@ -58,6 +60,25 @@ describe('update.md — deduplicação e integridade', () => {
         .prepare('SELECT COUNT(*) AS n FROM document_cnpjs')
         .get() as { n: number };
       expect(count.n).toBe(1);
+    });
+  });
+
+  describe('dois modelos (chat + embeddings) separados', () => {
+    it('usua modelo de embeddings dedicado por padrão', () => {
+      const llm = createLLM({ provider: 'ollama', model: 'gemma4' }) as OllamaProvider;
+      expect(llm.embedModel).toBe('nomic-embed-text');
+      expect(llm.model).toBe('gemma4');
+      expect(llm.embedModel).not.toBe(llm.model);
+    });
+
+    it('aceita embedModel explícito', () => {
+      const llm = createLLM({
+        provider: 'ollama',
+        model: 'mistral',
+        embedModel: 'bge-m3',
+      }) as OllamaProvider;
+      expect(llm.embedModel).toBe('bge-m3');
+      expect(llm.model).toBe('mistral');
     });
   });
 

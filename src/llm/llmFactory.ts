@@ -10,6 +10,7 @@ export interface ProviderOptions {
   provider: ProviderName;
   apiKey?: string;
   model?: string;
+  embedModel?: string;
   ollamaHost?: string;
 }
 
@@ -17,7 +18,7 @@ export function createLLM(options: ProviderOptions): LLMProvider {
   const model = options.model ?? defaultModel(options.provider);
   switch (options.provider) {
     case 'ollama':
-      return new OllamaProvider(model, options.ollamaHost);
+      return new OllamaProvider(model, options.ollamaHost, options.embedModel ?? 'nomic-embed-text');
     case 'gemini':
       if (!options.apiKey) throw new ZoraError('missing_api_key', 'Chave de API do Gemini não configurada.', true);
       return new GeminiProvider(model, options.apiKey);

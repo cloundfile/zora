@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { initDb, getDb } from '../models/db';
 import { migrateSchema, loadVectorExtension } from '../models/schema';
-import { buildLlm } from './llmHelper';
+import { buildAndValidateLlm } from './llmHelper';
 import { pickFile } from '../services/filePicker';
 import { ingestFile } from '../services/ingestion';
 import { linkFoundCnpjs } from '../services/cnpjService';
@@ -13,7 +13,7 @@ export async function trainCommand(): Promise<void> {
   migrateSchema();
   loadVectorExtension(getDb());
 
-  const llm = buildLlm();
+  const llm = await buildAndValidateLlm();
   const filepath = await pickFile();
 
   if (!filepath) {

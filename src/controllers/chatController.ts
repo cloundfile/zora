@@ -1,5 +1,5 @@
 import { ensureSetup } from '../setup/initSetup';
-import { buildLlm } from './llmHelper';
+import { buildAndValidateLlm } from './llmHelper';
 import { resolveSession } from '../services/chatService';
 import { runChatLoop } from '../views/chatView';
 import { printBanner } from '../views/output';
@@ -13,10 +13,7 @@ export async function chatCommand(sessionId?: string): Promise<void> {
   migrateSchema();
   loadVectorExtension(getDb());
 
-  const llm = buildLlm();
-  await llm.testConnection().catch((error) => {
-    throw new Error('Falha ao conectar com o provedor: ' + (error as Error).message);
-  });
+  const llm = await buildAndValidateLlm();
 
   const activeSessionId = resolveSession(sessionId);
   printBanner();

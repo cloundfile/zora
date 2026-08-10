@@ -1,6 +1,7 @@
 import { loadConfig } from '../setup/configStore';
 import { createLLM } from '../llm/llmFactory';
 import type { LLMProvider } from '../llm/types';
+import { validateModels } from '../llm/modelValidator';
 
 export function buildLlm(): LLMProvider {
   const config = loadConfig();
@@ -8,5 +9,12 @@ export function buildLlm(): LLMProvider {
     provider: config.provider,
     apiKey: config.apiKey,
     model: config.model,
+    embedModel: config.embedModel,
   });
+}
+
+export async function buildAndValidateLlm(): Promise<LLMProvider> {
+  const llm = buildLlm();
+  await validateModels(llm);
+  return llm;
 }

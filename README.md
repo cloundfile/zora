@@ -18,6 +18,10 @@ RAG local + consulta de CNPJ (Receita Federal) + Ollama e LLMs cloud (Gemini, Cl
 
 ```bash
 npm install -g @inneobr/zora
+
+ou
+
+sudo npm install -g @inneobr/zora --allow-scripts=better-sqlite3,esbuild,protobufjs,@google/genai
 ```
 
 > Requisitos: Node.js **v20+**. O **[Ollama](https://ollama.com)** é recomendado como LLM local (Gemma, Llama3, Mistral); sem Ollama, use Gemini, Claude ou ChatGPT com sua chave de API.

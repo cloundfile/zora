@@ -5,7 +5,8 @@ import { OllamaProvider } from '../llm/providers/ollamaProvider';
 import { createLLM } from '../llm/llmFactory';
 
 const OLLAMA_URL = 'http://localhost:11434';
-const OLLAMA_MODELS = ['gemma', 'mistral', 'llama3'];
+const OLLAMA_MODELS = ['gemma', 'gemma4', 'mistral', 'llama3'];
+const OLLAMA_EMBED_MODELS = ['nomic-embed-text', 'bge-m3', 'all-minilm'];
 
 export async function ensureSetup(): Promise<ZoraConfig> {
   if (hasConfig()) return loadConfig();
@@ -74,9 +75,21 @@ async function setupWithOllama(): Promise<ZoraConfig> {
     model = modelChoice;
   }
 
+  const { embedChoice } = await inquirer.prompt<{ embedChoice: string }>([
+    {
+      type: 'list',
+      name: 'embedChoice',
+      message: 'Escolha o modelo de embeddings (usado no treinamento e na busca RAG):',
+      choices: OLLAMA_EMBED_MODELS,
+      default: 'nomic-embed-text',
+    },
+  ]);
+  await pullModel(embedChoice);
+
   const config: ZoraConfig = {
     provider: 'ollama',
     model,
+    embedModel: embedChoice,
     developer: '@inneobr',
     contact: 'inneobr@gmail.com',
     license: 'MIT',
