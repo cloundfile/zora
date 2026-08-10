@@ -27,7 +27,7 @@ export async function chat(
     const info = await obterDadosCnpj(store, cnpj);
     if (info) {
       infosCnpj.push(info);
-      console.log(`\nCNPJ ${formatarCnpj(cnpj)} consultado (já existia ou treinado automaticamente).`);
+      console.log(`\nCNPJ ${formatarCnpj(cnpj)} consultado.`);
     }
   }
   const contexto = await store.buscar(pergunta);
