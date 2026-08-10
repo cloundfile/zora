@@ -15,20 +15,40 @@ async function run(cmd: string, args: string[]): Promise<string | null> {
   }
 }
 
+function extensionsToFilter(extensions: string[]): string {
+  return `Documentos (${extensions.join(' ')} *.${extensions.map((e) => e.slice(1)).join(' *.')})`;
+}
+
 export async function pickFile(
   extensions = ['.pdf', '.txt', '.json'],
 ): Promise<string | null> {
+  const files = await pickFiles(extensions);
+  return files[0] ?? null;
+}
+
+export async function pickFiles(
+  extensions = ['.pdf', '.txt', '.json'],
+): Promise<string[]> {
   const zenity = await run('zenity', [
     '--file-selection',
+    '--multiple',
+    '--separator=\n',
     '--file-filter',
-    `Documentos (${extensions.join(' ')} *.${extensions.map((e) => e.slice(1)).join(' *.')})`,
+    extensionsToFilter(extensions),
   ]);
-  if (zenity) return zenity;
+  if (zenity) return splitPaths(zenity);
 
-  const kdialog = await run('kdialog', ['--getopenfilename', process.cwd()]);
-  if (kdialog) return kdialog;
+  const kdialog = await run('kdialog', ['--getopenfilenames', process.cwd()]);
+  if (kdialog) return splitPaths(kdialog);
 
-  return pickFileFallback(extensions);
+  return pickFilesFallback(extensions);
+}
+
+function splitPaths(output: string): string[] {
+  return output
+    .split('\n')
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0 && fs.existsSync(p));
 }
 
 export async function pickSaveFile(defaultName = 'zora.db'): Promise<string | null> {
@@ -57,7 +77,7 @@ export async function pickSaveFile(defaultName = 'zora.db'): Promise<string | nu
   return target || null;
 }
 
-async function pickFileFallback(extensions: string[]): Promise<string | null> {
+async function pickFilesFallback(extensions: string[]): Promise<string[]> {
   const candidates = fs
     .readdirSync(process.cwd())
     .filter((f) => extensions.includes(path.extname(f).toLowerCase()))
@@ -66,18 +86,19 @@ async function pickFileFallback(extensions: string[]): Promise<string | null> {
   if (candidates.length === 0) {
     console.log('Nenhum arquivo compatível encontrado na pasta atual.');
     const { manual } = await inquirer.prompt<{ manual: string }>([
-      { type: 'input', name: 'manual', message: 'Informe o caminho do arquivo:' },
+      { type: 'input', name: 'manual', message: 'Informe o caminho de um arquivo:' },
     ]);
-    return manual && fs.existsSync(manual) ? manual : null;
+    return manual && fs.existsSync(manual) ? [manual] : [];
   }
 
-  const { selected } = await inquirer.prompt<{ selected: string }>([
+  const { selected } = await inquirer.prompt<{ selected: string[] }>([
     {
-      type: 'list',
+      type: 'checkbox',
       name: 'selected',
-      message: 'Selecione o arquivo:',
+      message: 'Selecione os arquivos (espaço marca/desmarca, enter confirma):',
       choices: candidates,
+      pageSize: 12,
     },
   ]);
-  return selected || null;
+  return selected ?? [];
 }
