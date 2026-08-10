@@ -12,10 +12,6 @@ export function pastaDatabase(): string {
   return path.join(pastaDados(), "database");
 }
 
-export function arquivoStore(): string {
-  return path.join(pastaDatabase(), "store.json");
-}
-
 export function arquivoBanco(): string {
   return path.join(pastaDatabase(), "zora.db");
 }

@@ -138,10 +138,6 @@ export class Store {
     return !!r;
   }
 
-  persistir(): void {
-    /* SQLite persiste automaticamente */
-  }
-
   fechar(): void {
     this.db.close();
   }

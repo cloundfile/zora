@@ -4,28 +4,17 @@ Assistente Pessoal de Pesquisa (versão TypeScript/Node.js).
 
 CLI de RAG local: treine documentos (.txt/.pdf) e faça perguntas respondidas por um LLM via Ollama, com contexto recuperado por similaridade vetorial.
 
+## Requisitos
+
+- Node.js >= 22.13 (usa `node:sqlite`)
+- Ollama instalado e rodando (o CLI tenta instalar/iniciar automaticamente se ausente)
+
 ## Instalação
-
-### A partir do código
-
-Requer Node.js (>= 18) e Ollama instalado/rodando.
 
 ```bash
 npm install
 npm run build       # gera dist/zora.cjs
 node dist/zora.cjs  # modo REPL
-```
-
-### Instaladores (.deb/.rpm)
-
-As releases geram pacotes `.deb` e `.rpm` automaticamente (GitHub Actions). Eles exigem apenas `nodejs` e gerenciam o binário `/usr/bin/zora`.
-
-```bash
-# Debian/Ubuntu
-sudo dpkg -i zora_*.deb
-
-# Fedora/RHEL
-sudo rpm -i zora-*.rpm
 ```
 
 ## Uso
@@ -42,12 +31,13 @@ sudo rpm -i zora-*.rpm
 
 ## Dados
 
-- Banco de dados: `~/zora/database/store.json` (chunks + embeddings via Ollama `nomic-embed-text`).
+- Banco de dados: `~/zora/database/zora.db` (SQLite com chunks + embeddings via Ollama `nomic-embed-text`).
 - Backups: `~/zora/backups/zora-backup-*.zip`.
 
 ## Desenvolvimento
 
 - `npm run dev` — executa via tsx (sem build).
+- `npm run typecheck` — checa os tipos com `tsc --noEmit`.
 - `npm run build` — empacota tudo em um único arquivo `dist/zora.cjs` com esbuild.
 
 ## Licença

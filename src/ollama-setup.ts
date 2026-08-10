@@ -9,18 +9,15 @@ export const MODELO_PADRAO = "gemma2";
 export const MODELO_EMBEDDING = "nomic-embed-text";
 
 export function ollamaInstalado(): boolean {
-  return !!shutilWhich("ollama");
+  return encontrarComando("ollama");
 }
 
-function shutilWhich(cmd: string): string | null {
+function encontrarComando(cmd: string): boolean {
   const dirs = process.env.PATH?.split(path.delimiter) ?? [];
-  for (const dir of dirs) {
-    const full = path.join(dir, cmd);
-    if (fs.existsSync(full)) return full;
-    const exe = path.join(dir, cmd + ".exe");
-    if (fs.existsSync(exe)) return exe;
-  }
-  return null;
+  return dirs.some((dir) => {
+    if (fs.existsSync(path.join(dir, cmd))) return true;
+    return fs.existsSync(path.join(dir, cmd + ".exe"));
+  });
 }
 
 export function instalarOllama(): void {
@@ -72,7 +69,7 @@ export function iniciarOllama(): void {
 }
 
 function sleepSync(ms: number): void {
-  spawnSync("sleep", [String(ms / 1000)], { stdio: "ignore" });
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
 export function listarModelos(): string[] {
@@ -150,14 +147,7 @@ export async function solicitarModeloAlternativo(
   });
   console.log("0) Tenho outro modelo instalado");
 
-  const { stdin, stdout } = process;
-  const rl = readline.createInterface({ input: stdin, output: stdout });
-  let escolha = "";
-  try {
-    escolha = await rl.question("\nDigite o número: ");
-  } finally {
-    rl.close();
-  }
+  const escolha = await perguntar("\nDigite o número: ");
   const idx = parseInt(escolha.trim(), 10) - 1;
   const modelo = Object.values(CANDIDATOS)[idx];
 
@@ -182,13 +172,11 @@ export async function solicitarModeloAlternativo(
   console.log("Exemplos: ollama pull gemma2 | ollama pull qwen2.5 | ollama pull llama3.2");
   await aguardarEnter();
 
-  const modelos = await listarModelos();
-  for (const m of modelos) {
-    if (m !== MODELO_EMBEDDING && m !== `${MODELO_EMBEDDING}:latest` && (await modeloFunciona(m))) {
-      await baixarEmbedding();
-      console.log(`Modelo verificado e em uso: ${m}`);
-      return m;
-    }
+  const comChat = await primeiroModeloFuncional();
+  if (comChat) {
+    await baixarEmbedding();
+    console.log(`Modelo verificado e em uso: ${comChat}`);
+    return comChat;
   }
   return solicitarModeloAlternativo();
 }
@@ -201,33 +189,39 @@ async function aguardarModeloManual(): Promise<string> {
       "  ollama pull llama3.2"
   );
   await aguardarEnter();
-  const modelos = await listarModelos();
-  for (const m of modelos) {
-    if (m !== MODELO_EMBEDDING && m !== `${MODELO_EMBEDDING}:latest` && (await modeloFunciona(m))) {
-      await baixarEmbedding();
-      console.log(`Modelo verificado e em uso: ${m}`);
-      return m;
-    }
+  const comChat = await primeiroModeloFuncional();
+  if (comChat) {
+    await baixarEmbedding();
+    console.log(`Modelo verificado e em uso: ${comChat}`);
+    return comChat;
   }
   console.log("Nenhum modelo compatível com chat foi encontrado.");
   return solicitarModeloAlternativo();
 }
 
-function aguardarEnter(): Promise<void> {
+async function primeiroModeloFuncional(): Promise<string | undefined> {
+  const modelos = await listarModelos();
+  for (const m of modelos) {
+    if (m === MODELO_EMBEDDING || m === `${MODELO_EMBEDDING}:latest`) continue;
+    if (await modeloFunciona(m)) return m;
+  }
+  return undefined;
+}
+
+function perguntar(pergunta: string): Promise<string> {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  return rl.question("Pressione Enter para continuar...").finally(() => rl.close());
+  return rl.question(pergunta).finally(() => rl.close());
+}
+
+function aguardarEnter(): Promise<void> {
+  return perguntar("Pressione Enter para continuar...").then(() => undefined);
 }
 
 async function confirmarDownload(modelo: string): Promise<boolean> {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  try {
-    const resposta = await rl.question(
-      `O modelo ${modelo} não está instalado. Deseja baixá-lo? (s/N): `
-    );
-    return resposta.trim().toLowerCase() === "s";
-  } finally {
-    rl.close();
-  }
+  const resposta = await perguntar(
+    `O modelo ${modelo} não está instalado. Deseja baixá-lo? (s/N): `
+  );
+  return resposta.trim().toLowerCase() === "s";
 }
 
 export async function baixarEmbedding(): Promise<void> {

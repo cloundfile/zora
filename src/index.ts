@@ -5,7 +5,7 @@ import { arquivoBanco, criarBackup, restaurarBackup, pastaDatabase } from "./bac
 import { escolherArquivo, limparTerminal } from "./seletor.js";
 import { lerDocumento, hashDocumento, getChunks } from "./treinador.js";
 import { iniciarRepl } from "./repl.js";
-import { chat } from "./rag.js";
+import { chat, PROMPT_SISTEMA } from "./rag.js";
 import fs from "node:fs";
 import readline from "node:readline/promises";
 
@@ -23,12 +23,6 @@ console.log = (...args: unknown[]) => {
   if (filtrarTT(...args)) return;
   logOriginal(...args);
 };
-
-const PROMPT = `Você é o Assistente Pessoal de Pesquisa, seu nome é Zora.
-Use o seguinte contexto para responder a questão, não use nenhuma informação adicional, se não houver informação no contexto responsa: Desculpe mas não consigo ajudar.
-Quando for listagens retorne em formato lista: exemplo * Mesa de escritorio R$: 1.500,00 ou * João da Silva 20 faltas, etc.
-Sempre termine a resposta com: Mais alguma duvida?
-e finalize com: "Zora é uma IA e pode cometer erros"`;
 
 const args = process.argv.slice(2);
 const comando = args[0]?.toLowerCase();
@@ -56,7 +50,6 @@ async function treinar(): Promise<void> {
     process.stdout.write(`Treinando chunk ${i + 1}/${chunks.length} (${arquivo})\r`);
     await store.adicionar(chunks[i], hash, arquivo);
   }
-  store.persistir();
   console.log(`\nTreinamento concluído: ${chunks.length} chunks adicionados.`);
 }
 
@@ -71,7 +64,7 @@ async function perguntar(): Promise<void> {
     return;
   }
   const modelo = await garantirOllama();
-  const resposta = await chat(store, modelo, PROMPT, manual, []);
+  const resposta = await chat(store, modelo, PROMPT_SISTEMA, manual, []);
   console.log(resposta);
 }
 
