@@ -2,11 +2,13 @@
 import { garantirOllama } from "./ollama-setup.js";
 import { Store } from "./store.js";
 import { arquivoBanco, criarBackup, restaurarBackup, pastaDatabase } from "./backup.js";
-import { escolherArquivo, limparTerminal } from "./seletor.js";
-import { lerDocumento, hashDocumento, getChunks } from "./treinador.js";
+import { escolherArquivos, limparTerminal } from "./seletor.js";
+import { lerDocumento, hashDocumento, getChunks, percorrerArquivos } from "./treinador.js";
+import { buscarCnpj, cnpjParaTexto, formatarCnpj, limparCnpj, validarCnpj } from "./cnpj.js";
 import { iniciarRepl } from "./repl.js";
 import { chat, PROMPT_SISTEMA } from "./rag.js";
 import fs from "node:fs";
+import path from "node:path";
 import readline from "node:readline/promises";
 
 process.noDeprecation = true;
@@ -34,23 +36,127 @@ const manual =
 async function treinar(): Promise<void> {
   fs.mkdirSync(pastaDatabase(), { recursive: true });
   const store = new Store(arquivoBanco());
-  const arquivo = manual ?? (await escolherArquivo());
-  if (!arquivo) {
+  let arquivos = manual ? [manual] : await escolherArquivos();
+  if (arquivos.length === 0) {
     console.log("Nenhum documento selecionado.");
     return;
   }
-  const texto = await lerDocumento(arquivo);
-  const hash = hashDocumento(texto);
-  if (store.jaExiste(hash)) {
-    console.log("Documento já treinado. Nada a fazer.");
+  const pastas = arquivos.filter((a) => {
+    try {
+      return fs.statSync(a).isDirectory();
+    } catch {
+      return false;
+    }
+  });
+  if (pastas.length > 0) {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    const nArq = pastas.reduce((acc, p) => acc + percorrerArquivos(p).length, 0);
+    const q = await rl.question(
+      `Pasta(s) selecionada(s). Deseja iniciar o treinamento dos ${nArq} arquivos encontrados? (s/N): `
+    );
+    rl.close();
+    if (q.trim().toLowerCase() === "s") {
+      const expandidos: string[] = [];
+      for (const a of arquivos) {
+        try {
+          if (fs.statSync(a).isDirectory()) expandidos.push(...percorrerArquivos(a));
+          else expandidos.push(a);
+        } catch {
+          /* arquivo inexistente */
+        }
+      }
+      arquivos = [...new Set(expandidos)];
+    } else {
+      arquivos = arquivos.filter((a) => {
+        try {
+          return !fs.statSync(a).isDirectory();
+        } catch {
+          return false;
+        }
+      });
+    }
+  }
+  if (arquivos.length === 0) {
+    console.log("Nenhum documento para treinar.");
     return;
   }
+  console.log(`${arquivos.length} documento(s) na fila.`);
+  let treinados = 0;
+  let pulados = 0;
+  for (const arquivo of arquivos) {
+    let texto: string;
+    try {
+      texto = await lerDocumento(arquivo);
+    } catch (e) {
+      console.error(`Falha ao ler ${arquivo}: ${e instanceof Error ? e.message : e}`);
+      pulados++;
+      continue;
+    }
+    const hash = hashDocumento(texto);
+    if (store.jaExiste(hash)) {
+      console.log(`Já treinado, pulando: ${path.basename(arquivo)}`);
+      pulados++;
+      continue;
+    }
+    const chunks = getChunks(texto);
+    for (let i = 0; i < chunks.length; i++) {
+      process.stdout.write(`Treinando ${path.basename(arquivo)} - chunk ${i + 1}/${chunks.length}\r`);
+      await store.adicionar(chunks[i], hash, arquivo);
+    }
+    process.stdout.write("\n");
+    treinados++;
+  }
+  const texto = arquivos.length === 1 ? "documento" : "documentos";
+  console.log(`\nTreinamento concluído: ${treinados} ${texto} adicionado(s), ${pulados} pulado(s).`);
+}
+
+async function treinarCnpj(): Promise<void> {
+  const cnpj = manual ?? (await perguntaCnpj());
+  if (!cnpj) {
+    console.log("Nenhum CNPJ informado.");
+    return;
+  }
+  const digitos = limparCnpj(cnpj);
+  if (!validarCnpj(digitos)) {
+    console.log(`CNPJ inválido: ${cnpj}`);
+    return;
+  }
+  console.log(`Consultando CNPJ ${formatarCnpj(digitos)}...`);
+  let dados;
+  try {
+    dados = await buscarCnpj(digitos);
+  } catch (e) {
+    console.error(e instanceof Error ? e.message : e);
+    return;
+  }
+  if (dados.status && dados.status !== "OK") {
+    console.log(`Consulta retornou status: ${dados.status}`);
+    return;
+  }
+  const texto = cnpjParaTexto(dados);
+  fs.mkdirSync(pastaDatabase(), { recursive: true });
+  const store = new Store(arquivoBanco());
+  const hash = hashDocumento(texto);
+  if (store.jaExiste(hash)) {
+    console.log("CNPJ já treinado. Nada a fazer.");
+    return;
+  }
+  const origem = `CNPJ ${formatarCnpj(digitos)}`;
   const chunks = getChunks(texto);
   for (let i = 0; i < chunks.length; i++) {
-    process.stdout.write(`Treinando chunk ${i + 1}/${chunks.length} (${arquivo})\r`);
-    await store.adicionar(chunks[i], hash, arquivo);
+    process.stdout.write(`Vetorizando chunk ${i + 1}/${chunks.length} (${origem})\r`);
+    await store.adicionar(chunks[i], hash, origem);
   }
-  console.log(`\nTreinamento concluído: ${chunks.length} chunks adicionados.`);
+  console.log(`\nCNPJ treinado: ${chunks.length} chunks adicionados.`);
+}
+
+async function perguntaCnpj(): Promise<string | null> {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    return (await rl.question("Digite o CNPJ: ")).trim() || null;
+  } finally {
+    rl.close();
+  }
 }
 
 async function perguntar(): Promise<void> {
@@ -97,10 +203,13 @@ async function main(): Promise<void> {
     case "":
       const modelo = await garantirOllama();
       const store = new Store(arquivoBanco());
-      await iniciarRepl(store, modelo, []);
+      await iniciarRepl(store, modelo);
       break;
     case "treinar":
       await treinar();
+      break;
+    case "cnpj":
+      await treinarCnpj();
       break;
     case "perguntar":
       await perguntar();
@@ -128,7 +237,7 @@ async function main(): Promise<void> {
       break;
     default:
       console.log(
-        `Comando desconhecido: ${comando}\nComandos: treinar, perguntar, status, limpar, backup, restaurar`
+        `Comando desconhecido: ${comando}\nComandos: treinar, cnpj, perguntar, status, limpar, backup, restaurar`
       );
   }
 }

@@ -1,5 +1,6 @@
 import ollama from "ollama";
 import { Store } from "./store.js";
+import { formatarCnpj, extrairCnpjs, treinarCnpjAutomatico } from "./cnpj.js";
 
 export interface Mensagem {
   role: "system" | "user" | "assistant";
@@ -7,6 +8,9 @@ export interface Mensagem {
 }
 
 export const PROMPT_SISTEMA = `Você é o Assistente Pessoal de Pesquisa, seu nome é Zora.
+Português do Brasil, resposta direta, sem olá.
+As mensagens anteriores que você recebeu nesta mesma conversa fazem parte do contexto desta seção; use-as para manter coerência e retomar o que já foi perguntado.
+Quando a pergunta menciona um CNPJ e as informações dessa empresa não estiverem no contexto, consulte os dados do CNPJ automaticamente e treine-os antes de responder.
 Use o seguinte contexto para responder a questão, não use nenhuma informação adicional, se não houver informação no contexto responsa: Desculpe mas não consigo ajudar.
 Quando for listagens retorne em formato lista: exemplo * Mesa de escritorio R$: 1.500,00 ou * João da Silva 20 faltas, etc.
 Sempre termine a resposta com: \n'Zora é uma IA e pode cometer erros'`;
@@ -18,6 +22,11 @@ export async function chat(
   pergunta: string,
   historico: Mensagem[]
 ): Promise<string> {
+  for (const cnpj of extrairCnpjs(pergunta)) {
+    if (await treinarCnpjAutomatico(store, cnpj)) {
+      console.log(`\nCNPJ ${formatarCnpj(cnpj)} consultado e treinado automaticamente.`);
+    }
+  }
   const contexto = await store.buscar(pergunta);
   const contextoTexto = contexto.map((c) => c.texto).join("\n\n");
   const messages: Mensagem[] = [];

@@ -1,12 +1,12 @@
 {
   "name": "@inneobr/zora",
-  "version": "1.0.4",
+  "version": "1.0.7",
   "description": "Assistente Pessoal de Pesquisa",
   "type": "module",
   "license": "MIT",
   "bin": {
-    "zora": "./dist/zora.cjs",
-    "rag": "./dist/zora.cjs"
+    "zora": "dist/zora.cjs",
+    "rag": "dist/zora.cjs"
   },
   "engines": {
     "node": ">=22.13"
