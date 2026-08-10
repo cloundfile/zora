@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import readline from "node:readline/promises";
 import ollama from "ollama";
+import { version } from "../package.json";
 
 export const MODELO_PADRAO = "gemma2";
 export const MODELO_EMBEDDING = "nomic-embed-text";
@@ -116,7 +117,7 @@ export async function garantirOllama(): Promise<string> {
     iniciarOllama();
     baixarModelo(MODELO_PADRAO);
     await baixarEmbedding();
-    console.log(`Modelo padrão definido: ${MODELO_PADRAO}`);
+    console.log(`Zora: ${MODELO_PADRAO} Version: ${version}`);
     return MODELO_PADRAO;
   }
 
@@ -127,7 +128,7 @@ export async function garantirOllama(): Promise<string> {
 
   const modeloDefault = modelos[0];
   if (modeloDefault && (await modeloFunciona(modeloDefault))) {
-    console.log(`Ollama: ${modeloDefault} : OK`);
+    console.log(`Zora: ${modeloDefault} Version: ${version}`);
     await baixarEmbedding();
     return modeloDefault;
   }
