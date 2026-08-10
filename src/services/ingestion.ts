@@ -25,13 +25,54 @@ export function extractText(buffer: Buffer, mimeType: string): Promise<string> {
 }
 
 async function extractPdfText(buffer: Buffer): Promise<string> {
+  let libraryReason = '';
+
   try {
     const pdfParse = require('pdf-parse');
     const res = await pdfParse(buffer);
-    return res.text ?? '';
+    const text = res?.text ?? '';
+    if (text.trim()) return text;
+    libraryReason = 'pdf-parse retornou texto vazio';
   } catch (error) {
-    throw new ZoraError('pdf_parse_failed', `Falha ao ler PDF: ${(error as Error).message}`);
+    libraryReason = (error as Error).message;
   }
+
+  const cliText = await pdftotext(buffer);
+  if (cliText !== null && cliText.trim()) return cliText;
+
+  throw new ZoraError(
+    'pdf_parse_failed',
+    'Falha ao ler PDF' +
+      (libraryReason ? ` (${libraryReason})` : '') +
+      '. O arquivo pode estar escaneado (apenas imagem) ou o `pdftotext` (poppler-utils) não está instalado.',
+  );
+}
+
+async function pdftotext(buffer: Buffer): Promise<string | null> {
+  const { spawn } = require('child_process');
+  return new Promise((resolve) => {
+    let child;
+    try {
+      child = spawn('pdftotext', ['-', '-'], { stdio: ['pipe', 'pipe', 'pipe'] });
+    } catch {
+      resolve(null);
+      return;
+    }
+    let out = '';
+    let settled = false;
+    const finish = (value: string | null) => {
+      if (!settled) {
+        settled = true;
+        resolve(value);
+      }
+    };
+    child.stdout.on('data', (d: Buffer) => (out += d.toString()));
+    child.stderr.on('data', () => undefined);
+    child.on('error', () => finish(null));
+    child.on('close', (code: number | null) => finish(code === 0 ? out : null));
+    child.stdin.on('error', () => finish(null));
+    child.stdin.write(buffer, () => child.stdin.end());
+  });
 }
 
 export function mimeFromExtension(filename: string): string {

@@ -2,8 +2,10 @@ import type { LLMProvider } from '../llm/types';
 import { buildSystemPrompt, GUARDRAIL_RESPONSE } from '../llm/systemPrompt';
 import { addMessage, getRecentMessages } from '../models/messageModel';
 import { createSession, getSessionById, getLastSession } from '../models/sessionModel';
-import { searchChunks, buildContext } from './vectorStore';
+import { getChunkCount } from '../models/documentModel';
+import { searchChunks, buildContext, type ChunkMatch } from './vectorStore';
 import { normalizeCnpj, lookupCnpj } from './cnpjService';
+import chalk from 'chalk';
 
 export interface ChatTurn {
   input: string;
@@ -34,7 +36,24 @@ export async function answerQuestion(
     }
   }
 
-  const matches = await searchChunks(llm, input);
+  if (getChunkCount() === 0) {
+    addMessage(sessionId, 'output', GUARDRAIL_RESPONSE);
+    return GUARDRAIL_RESPONSE;
+  }
+
+  let matches: ChunkMatch[];
+  try {
+    matches = await searchChunks(llm, input);
+  } catch (error) {
+    console.log(
+      chalk.yellow(
+        `⚠️ Não foi possível gerar embeddings: ${(error as Error).message} ` +
+          'Garanta que o Ollama esteja com suporte a embeddings (`ollama serve --embeddings`).',
+      ),
+    );
+    addMessage(sessionId, 'output', GUARDRAIL_RESPONSE);
+    return GUARDRAIL_RESPONSE;
+  }
   const context = buildContext(matches);
 
   if (!context.trim()) {

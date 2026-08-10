@@ -26,7 +26,7 @@ export function cosineSimilarity(a: number[], b: number[]): number {
 export async function searchChunks(
   llm: LLMProvider,
   query: string,
-  limit = 5,
+  limit = 10,
 ): Promise<ChunkMatch[]> {
   const queryEmbedding = await llm.embed(query);
   const rows = getDb()
