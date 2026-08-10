@@ -25,7 +25,7 @@ export async function iniciarRepl(store: Store, modelo: string): Promise<void> {
         break;
       }
       if (!pergunta.trim()) continue;
-      const historico = paraHistorico(conversas.ultimas(secao.id, 5));
+      const historico = paraHistorico(conversas.ultimas(secao.id, 10));
       conversas.adicionar(secao.id, pergunta, "user");
       limparTerminal();
       console.log(`Pergunta: ${pergunta}\n`);
