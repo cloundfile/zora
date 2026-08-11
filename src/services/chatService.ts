@@ -49,7 +49,7 @@ export async function answerQuestion(
   let matches: ChunkMatch[] = [];
   if (getChunkCount() > 0) {
     try {
-      matches = await searchChunks(llm, input, 10);
+      matches = await searchChunks(llm, input, 5);
     } catch (error) {
       console.log(
         chalk.yellow(
@@ -71,7 +71,7 @@ export async function answerQuestion(
 
   const context = await enriquecerContexto(contextoBase);
 
-  const history = getRecentMessages(sessionId, 10)
+  const history = getRecentMessages(sessionId, 5)
     .map((m): ChatMessage => ({
       role: m.role === 'input' ? ('user' as const) : ('assistant' as const),
       content: m.content,
