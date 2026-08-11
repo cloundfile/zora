@@ -93,6 +93,8 @@ async function setupWithOllama(): Promise<ZoraConfig> {
     developer: '@inneobr',
     contact: 'inneobr@gmail.com',
     license: 'MIT',
+    matches: 10,
+    history: 10,
   };
   saveConfig(config);
   console.log(chalk.green('Configuração salva em ~/.zorarc.'));
@@ -138,6 +140,8 @@ async function setupWithOnlineProvider(): Promise<ZoraConfig> {
     developer: '@inneobr',
     contact: 'inneobr@gmail.com',
     license: 'MIT',
+    matches: 10,
+    history: 10,
   };
   saveConfig(config);
   console.log(chalk.green('Configuração salva em ~/.zorarc.'));

@@ -24,6 +24,8 @@ export async function configCommand(): Promise<void> {
     console.log(`  • Provedor: ${config.provider}`);
     console.log(`  • Modelo (chat): ${config.model ?? defaultModel(config.provider)}`);
     console.log(`  • Modelo (embeddings): ${config.embedModel ?? 'nomic-embed-text'}`);
+    console.log(`  • Trechos (matches) por consulta: ${config.matches}`);
+    console.log(`  • Histórico (mensagens pares 0-20): ${config.history}`);
     console.log(`  • API Key: ${config.apiKey ? '••••••••' + config.apiKey.slice(-4) : 'não definida'}`);
 
     const { action } = await inquirer.prompt<{ action: string }>([
@@ -36,6 +38,8 @@ export async function configCommand(): Promise<void> {
           { name: 'Chave de API', value: 'apikey' },
           { name: 'Modelo (chat)', value: 'model' },
           { name: 'Modelo (embeddings)', value: 'embedModel' },
+          { name: 'Trechos (matches) por consulta', value: 'matches' },
+          { name: 'Histórico (mensagens pares 0-20)', value: 'history' },
           { name: 'Salvar e sair', value: 'done' },
         ],
         loop: false,
@@ -54,6 +58,12 @@ export async function configCommand(): Promise<void> {
         break;
       case 'embedModel':
         await changeEmbedModel();
+        break;
+      case 'matches':
+        await changeMatches();
+        break;
+      case 'history':
+        await changeHistory();
         break;
       case 'done':
       default:
@@ -143,4 +153,41 @@ async function changeModel(): Promise<void> {
   ]);
   updateConfig({ model: model.trim() || undefined });
   console.log(chalk.green('Modelo atualizado.'));
+}
+
+const HISTORY_CHOICES = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20];
+
+async function changeMatches(): Promise<void> {
+  const config = loadConfig();
+  const { matches } = await inquirer.prompt<{ matches: number }>([
+    {
+      type: 'number',
+      name: 'matches',
+      message: `Trechos (matches) recuperados por consulta (atual: ${config.matches}):`,
+      default: config.matches,
+      validate: (v?: number) =>
+        Number.isInteger(v) && (v as number) > 0 ? true : 'Informe um número inteiro maior que zero.',
+    },
+  ]);
+  updateConfig({ matches });
+  console.log(chalk.green('Quantidade de trechos atualizada.'));
+}
+
+async function changeHistory(): Promise<void> {
+  const config = loadConfig();
+  const { history } = await inquirer.prompt<{ history: number }>([
+    {
+      type: 'list',
+      name: 'history',
+      message: 'Mensagens de histórico consideradas (apenas valores pares):',
+      choices: HISTORY_CHOICES.map((value) => ({
+        name: value === 0 ? '0 (sem histórico)' : String(value),
+        value,
+      })),
+      default: config.history,
+      loop: false,
+    },
+  ]);
+  updateConfig({ history });
+  console.log(chalk.green('Tamanho do histórico atualizado.'));
 }

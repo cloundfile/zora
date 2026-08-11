@@ -12,6 +12,8 @@ export interface ZoraConfig {
   developer: string;
   contact: string;
   license: string;
+  matches: number;
+  history: number;
 }
 
 const CONFIG_PATH = path.join(os.homedir(), '.zorarc');
@@ -23,6 +25,8 @@ const DEFAULT_CONFIG: ZoraConfig = {
   developer: '@inneobr',
   contact: 'inneobr@gmail.com',
   license: 'MIT',
+  matches: 10,
+  history: 10,
 };
 
 export function getConfigPath(): string {

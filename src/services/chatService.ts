@@ -7,6 +7,7 @@ import type { LLMProvider, ChatMessage } from '../llm/types';
 import { getChunkCount } from '../models/documentModel';
 import { buscarCnpj, cnpjParaTexto, extrairCnpjs, formatarCnpj, limparCnpj, validarCnpj, type DadosCnpj } from './cnpjService';
 import { getCompany } from '../models/companyModel';
+import { loadConfig } from '../setup/configStore';
 import chalk from 'chalk';
 
 export interface ChatTurn {
@@ -46,10 +47,11 @@ export async function answerQuestion(
 
   const local = buscarLocal(input);
 
+  const config = loadConfig();
   let matches: ChunkMatch[] = [];
   if (getChunkCount() > 0) {
     try {
-      matches = await searchChunks(llm, input, 5);
+      matches = await searchChunks(llm, input, config.matches);
     } catch (error) {
       console.log(
         chalk.yellow(
@@ -71,7 +73,7 @@ export async function answerQuestion(
 
   const context = await enriquecerContexto(contextoBase);
 
-  const history = getRecentMessages(sessionId, 5)
+  const history = getRecentMessages(sessionId, config.history)
     .map((m): ChatMessage => ({
       role: m.role === 'input' ? ('user' as const) : ('assistant' as const),
       content: m.content,
